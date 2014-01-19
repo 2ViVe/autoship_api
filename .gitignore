@@ -1,0 +1,6 @@
+config/*.yml
+.ruby-version
+.ruby-gemset
+*.swp
+.bundle
+tags
