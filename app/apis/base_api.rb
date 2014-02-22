@@ -1,5 +1,7 @@
 class BaseAPI < Grape::API
+  class MissingHeadersError < StandardError; end
   Grape::Middleware::Error.send :include, ResponseHelper
+  REQUIRED_HEADERS = %w(Accept Accept-Language X-Company-Code X-User-Id)
 
   def self.inherited(subclass)
     super
@@ -16,16 +18,15 @@ class BaseAPI < Grape::API
       end
 
       before do
+        if (blank_headers = REQUIRED_HEADERS.select { |key| headers[key].blank? }).present?
+          raise MissingHeadersError.new("required headers #{blank_headers.join(', ')}")
+        end
+        I18n.locale = headers['Accept-Language']
         ActiveRecord::Base.connection_pool.connections.map(&:verify!)
-        I18n.locale = params[:locale].to_sym if params[:locale].present?
       end
 
       after do
         ActiveRecord::Base.clear_active_connections!
-      end
-
-      params do
-        optional :locale,  type: String,  desc: 'I18n locale'
       end
 
       rescue_from ActiveRecord::RecordNotFound do |error|

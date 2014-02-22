@@ -1,5 +1,4 @@
-#source "http://rubygems.org"
-source 'http://ruby.taobao.org'
+source "http://rubygems.org"
 
 gem "pg", "~> 0.17.1"
 gem "builder", "3.1.4"
@@ -11,6 +10,7 @@ gem "redis", "~> 3.0.6"
 gem "hiredis", "~> 0.4.5"
 gem "i18n", "~> 0.6.9"
 gem 'cached_key_value_store'
+gem "rest-client", "~> 1.6.7"
 
 group :development, :test do
   gem 'pry-debugger'

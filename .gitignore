@@ -4,3 +4,4 @@ config/*.yml
 *.swp
 .bundle
 tags
+log/*
