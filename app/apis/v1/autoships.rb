@@ -125,20 +125,20 @@ module V1
             autoship_items_attributes: autoship_items_attributes
           })
 
-          # state   = State.find(autoship.bill_address.state_id)
-          # country = Country.find(autoship.bill_address.country_id)
-          # token_params = params.slice('payment-method-id', 'creditcard', 'billing-address').merge('user-id' => params[:user_id])
-          # token_params['billing-address']['state-abbr'] = state.abbr
-          # token_params['billing-address']['country-iso'] = country.iso
-          # token_response = API::Payment.create_token(token_params)
-          # unless token_response.success?
-          #   generate_error_response(TokenFailedError.new(token_response.message), 400) and return
-          # end
+          state   = State.find(autoship.bill_address.state_id)
+          country = Country.find(autoship.bill_address.country_id)
+          token_params = params.slice('payment-method-id', 'creditcard', 'billing-address').merge('user-id' => params[:user_id])
+          token_params['billing-address']['state-abbr'] = state.abbr
+          token_params['billing-address']['country-iso'] = country.iso
+          token_response = API::Payment.create_token(token_params)
+          unless token_response.success?
+            generate_error_response(TokenFailedError.new(token_response.message), 400) and return
+          end
 
           autoship.autoship_payments.build({
             user_id: @user.id,
             creditcard_attributes: {
-              token:  'test', #token_response.body['payment-token-id'],
+              token:  token_response.body['payment-token-id'],
               month:  params[:creditcard]['expiration-month'],
               year:   params[:creditcard]['expiration-year'],
               number: params[:creditcard][:number],
@@ -272,20 +272,20 @@ module V1
           creditcard.set_attributes
 
           if creditcard.changed?
-            # state   = State.find(autoship.bill_address.state_id)
-            # country = Country.find(autoship.bill_address.country_id)
-            # token_params = params.slice('payment-method-id', 'creditcard', 'billing-address').merge('user-id' => params[:user_id])
-            # token_params['billing-address']['state-abbr'] = state.abbr
-            # token_params['billing-address']['country-iso'] = country.iso
-            # token_response = API::Payment.create_token(token_params)
-            # unless token_response.success?
-            #   generate_error_response(TokenFailedError.new(token_response.message), 400) and return
-            # end
+            state   = State.find(autoship.bill_address.state_id)
+            country = Country.find(autoship.bill_address.country_id)
+            token_params = params.slice('payment-method-id', 'creditcard', 'billing-address').merge('user-id' => params[:user_id])
+            token_params['billing-address']['state-abbr'] = state.abbr
+            token_params['billing-address']['country-iso'] = country.iso
+            token_response = API::Payment.create_token(token_params)
+            unless token_response.success?
+              generate_error_response(TokenFailedError.new(token_response.message), 400) and return
+            end
 
             autoship.autoship_payments.build({
               user_id: @user.id,
               creditcard_attributes: {
-                token:  'test', #token_response.body['payment-token-id'],
+                token:  token_response.body['payment-token-id'],
                 month:  params[:creditcard]['expiration-month'],
                 year:   params[:creditcard]['expiration-year'],
                 number: params[:creditcard][:number],
