@@ -5,3 +5,4 @@ config/*.yml
 .bundle
 tags
 log/*
+script/*

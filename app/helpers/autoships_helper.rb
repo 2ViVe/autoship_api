@@ -29,8 +29,4 @@ module AutoshipsHelper
       result
     end
   end
-
-  def should_at_least_select_one_product(autoship_items_attributes)
-    autoship_items_attributes.collect { |_, v| v[:quantity].to_i }.sum > 0
-  end
 end
