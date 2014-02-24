@@ -25,6 +25,10 @@ module V1
           requires :id, type: Integer, desc: 'autoship id'
         end
         get ':id' do
+          # result = {
+          #   
+          # }
+          # autoship = @user.autoships.find(params[:id])
           generate_success_response autoship: @user.autoships.find(params[:id])
         end
 
@@ -32,7 +36,7 @@ module V1
         params do
           requires 'payment-method-id',  type: Integer
           requires 'start-date',         type: Date
-          requires 'autoship-date',      type: Integer
+          requires 'autoship-day',       type: Integer
           requires 'role-id',            type: Integer
           requires 'status',             type: String, values: ['active', 'inactive']
           requires 'shipping-method-id', type: Integer
@@ -93,35 +97,13 @@ module V1
             user_id: @user.id,
             role_id: params['role-id'],
             start_date: params['start-date'],
-            active_date: params['autoship-date'],
+            active_date: params['autoship-day'],
             shipping_method_id: params['shipping-method-id'],
             state: params[:status],
             created_by: current_user.id,
             updated_by: current_user.id,
-            ship_address_attributes: {
-              firstname:  params['shipping-address']['first-name'],
-              middleabbr: params['shipping-address']['m'],
-              lastname:   params['shipping-address']['last-name'],
-              address1:   params['shipping-address']['street'],
-              address2:   params['shipping-address']['street-cont'],
-              city:       params['shipping-address']['city'],
-              state_id:   params['shipping-address']['state-id'],
-              zipcode:    params['shipping-address']['zip'],
-              country_id: params['shipping-address']['country-id'],
-              phone:      params['shipping-address']['phone']
-            },
-            bill_address_attributes: {
-              firstname:  params['billing-address']['first-name'],
-              middleabbr: params['billing-address']['m'],
-              lastname:   params['billing-address']['last-name'],
-              address1:   params['billing-address']['street'],
-              address2:   params['billing-address']['street-cont'],
-              city:       params['billing-address']['city'],
-              state_id:   params['billing-address']['state-id'],
-              zipcode:    params['billing-address']['zip'],
-              country_id: params['billing-address']['country-id'],
-              phone:      params['billing-address']['phone']
-            },
+            ship_address_attributes: generate_address_attributes(params['shipping-address']),
+            bill_address_attributes: generate_address_attributes(params['billing-address']),
             autoship_items_attributes: autoship_items_attributes
           })
 
@@ -157,7 +139,7 @@ module V1
         params do
           requires 'payment-method-id',  type: Integer
           requires 'start-date',         type: Date
-          requires 'autoship-date',      type: Integer
+          requires 'autoship-day',       type: Integer
           requires 'role-id',            type: Integer
           requires 'status',             type: String, values: ['active', 'inactive']
           requires 'shipping-method-id', type: Integer
@@ -200,32 +182,9 @@ module V1
           current_user = User.find(headers['X-User-Id'])
           autoship     = @user.autoships.find(params[:id])
           autoship.updated_by = current_user.id
+          autoship.ship_address.attributes = generate_address_attributes(params['shipping-address'])
+          autoship.bill_address.attributes = generate_address_attributes(params['billing-address'])
 
-          autoship.ship_address.attributes = {
-            firstname:  params['shipping-address']['first-name'],
-            middleabbr: params['shipping-address']['m'],
-            lastname:   params['shipping-address']['last-name'],
-            address1:   params['shipping-address']['street'],
-            address2:   params['shipping-address']['street-cont'],
-            city:       params['shipping-address']['city'],
-            state_id:   params['shipping-address']['state-id'],
-            zipcode:    params['shipping-address']['zip'],
-            country_id: params['shipping-address']['country-id'],
-            phone:      params['shipping-address']['phone']
-          }
-
-          autoship.bill_address.attributes = {
-            firstname:  params['billing-address']['first-name'],
-            middleabbr: params['billing-address']['m'],
-            lastname:   params['billing-address']['last-name'],
-            address1:   params['billing-address']['street'],
-            address2:   params['billing-address']['street-cont'],
-            city:       params['billing-address']['city'],
-            state_id:   params['billing-address']['state-id'],
-            zipcode:    params['billing-address']['zip'],
-            country_id: params['billing-address']['country-id'],
-            phone:      params['billing-address']['phone']
-          }
           validate_address_types = []
           validate_address_types << 'billing' if autoship.bill_address.changed?
           validate_address_types << 'shipping' if autoship.ship_address.changed?

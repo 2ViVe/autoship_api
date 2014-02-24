@@ -29,4 +29,34 @@ module AutoshipsHelper
       result
     end
   end
+
+  def generate_address_attributes(attributes)
+    {
+      firstname:  attributes['first-name'],
+      middleabbr: attributes['m'],
+      lastname:   attributes['last-name'],
+      address1:   attributes['street'],
+      address2:   attributes['street-cont'],
+      city:       attributes['city'],
+      state_id:   attributes['state-id'],
+      zipcode:    attributes['zip'],
+      country_id: attributes['country-id'],
+      phone:      attributes['phone']
+    }
+  end
+
+  def decorate_address_attributes(address)
+    {
+      'first-name'  => address.firstname,
+      'm'           => address.middleabbr,
+      'last-name'   => address.lastname,
+      'street'      => address.address1,
+      'street-cont' => address.address2,
+      'city'        => address.city,
+      'state-id'    => address.state_id,
+      'zip'         => address.zipcode,
+      'country-id'  => address.country_id,
+      'phone'       => address.phone
+    }
+  end
 end
