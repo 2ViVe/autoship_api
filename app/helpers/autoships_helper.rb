@@ -30,33 +30,34 @@ module AutoshipsHelper
     end
   end
 
-  def generate_address_attributes(attributes)
-    {
-      firstname:  attributes['first-name'],
-      middleabbr: attributes['m'],
-      lastname:   attributes['last-name'],
-      address1:   attributes['street'],
-      address2:   attributes['street-cont'],
-      city:       attributes['city'],
-      state_id:   attributes['state-id'],
-      zipcode:    attributes['zip'],
-      country_id: attributes['country-id'],
-      phone:      attributes['phone']
+  def generate_autoship_response(autoship)
+    result = {
+      'id'                => autoship.id,
+      'payment-method-id' => autoship.autoship_payments.active_payment.payment_method_id,
+      'start-date'        => autoship.start_date.to_s,
+      'autoship-day'      => autoship.active_date,
+      'user-id'           => autoship.user_id,
+      'role-id'           => autoship.role_id,
+      'status'            => autoship.state,
+      'shipping-address'  => autoship.ship_address.decorated_attributes,
+      'billing-address'   => autoship.bill_address.decorated_attributes
     }
-  end
 
-  def decorate_address_attributes(address)
-    {
-      'first-name'  => address.firstname,
-      'm'           => address.middleabbr,
-      'last-name'   => address.lastname,
-      'street'      => address.address1,
-      'street-cont' => address.address2,
-      'city'        => address.city,
-      'state-id'    => address.state_id,
-      'zip'         => address.zipcode,
-      'country-id'  => address.country_id,
-      'phone'       => address.phone
-    }
+    variants_price_hash = autoship.variants_price_hash
+    result['autoship-items'] = autoship.autoship_items.map do |item|
+      variant = item.variant
+      {
+        'variant-id'   => variant.id,
+        'sku'          => variant.sku,
+        'product-name' => variant.product.name,
+        'quantity'     => item.quantity,
+        'image-url'    => '',
+        'unit-price'   => variants_price_hash[variant.id],
+        'unit-pv'      => variant.variant_commission.volume
+      }
+    end
+
+    result['item-price'] = variants_price_hash.values.sum
+    result
   end
 end

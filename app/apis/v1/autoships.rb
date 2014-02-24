@@ -1,9 +1,5 @@
 module V1
   class Autoships < ::BaseAPI
-    class TokenFailedError < StandardError; end
-    class NoProductError < StandardError; end
-    class InvalidAutoshipError < StandardError; end
-    class InvalidAddressError < StandardError; end
     version 'v1', using: :path
 
     params do
@@ -25,11 +21,8 @@ module V1
           requires :id, type: Integer, desc: 'autoship id'
         end
         get ':id' do
-          # result = {
-          #   
-          # }
-          # autoship = @user.autoships.find(params[:id])
-          generate_success_response autoship: @user.autoships.find(params[:id])
+          autoship = @user.autoships.find(params[:id])
+          generate_success_response generate_autoship_response(autoship)
         end
 
         desc 'POST /v1/users/:user_id/autoships'
@@ -81,16 +74,15 @@ module V1
           %w(billing shipping).each do |type|
             validate_response = API::Address.validate(type, params["#{type}-address"])
             if !validate_response.success?
-              generate_error_response(InvalidAddressError.new(validate_response.error_message), 400) and return
+              generate_error_response(Errors::InvalidAddress.new(validate_response.error_message)) and return
             elsif validate_response.body['failures'].present?
-              generate_error_response(InvalidAddressError.new(validate_response.body['failures'].to_json), 400) and return
+              generate_error_response(Errors::InvalidAddress.new(validate_response.body['failures'].to_json)) and return
             end
           end
-
           autoship_items_attributes = JSON.load(params['autoship-items']).map { |h| { variant_id: h['variant-id'], quantity: h['quantity'] } }
           autoship_items_attributes.select! { |item| item[:quantity].to_i > 0 }
           if autoship_items_attributes.blank?
-            generate_error_response(NoProductError.new(I18n.t("please_at_least_select_one_product")), 400) and return
+            generate_error_response(Errors::InvalidAutoshipItem.new(I18n.t("please_at_least_select_one_product"))) and return
           end
 
           autoship = Autoship.new({
@@ -102,10 +94,13 @@ module V1
             state: params[:status],
             created_by: current_user.id,
             updated_by: current_user.id,
-            ship_address_attributes: generate_address_attributes(params['shipping-address']),
-            bill_address_attributes: generate_address_attributes(params['billing-address']),
+            ship_address_attributes: Address.generate_attributes_by_decorated_attributes(params['shipping-address']),
+            bill_address_attributes: Address.generate_attributes_by_decorated_attributes(params['billing-address']),
             autoship_items_attributes: autoship_items_attributes
           })
+          if (not_allowed_variant_ids = autoship.not_allowed_variant_ids).present?
+            generate_error_response(Errors::InvalidAutoshipItem.new("not allowed variant ids is #{not_allowed_variant_ids.join(', ')}")) and return
+          end
 
           state   = State.find(autoship.bill_address.state_id)
           country = Country.find(autoship.bill_address.country_id)
@@ -114,7 +109,7 @@ module V1
           token_params['billing-address']['country-iso'] = country.iso
           token_response = API::Payment.create_token(token_params)
           unless token_response.success?
-            generate_error_response(TokenFailedError.new(token_response.message), 400) and return
+            generate_error_response(Errors::TokenFailed.new(token_response.message)) and return
           end
 
           autoship.autoship_payments.build({
@@ -131,7 +126,7 @@ module V1
           if autoship.save
             generate_success_response('autoship-id' => autoship.id, 'state' => autoship.state)
           else
-            generate_error_response(InvalidAutoshipError.new(autoship.errors.full_messages.join('; ')), 400)
+            generate_error_response(Errors::InvalidAutoship.new(autoship.errors.full_messages.join('; ')))
           end
         end
 
@@ -182,8 +177,8 @@ module V1
           current_user = User.find(headers['X-User-Id'])
           autoship     = @user.autoships.find(params[:id])
           autoship.updated_by = current_user.id
-          autoship.ship_address.attributes = generate_address_attributes(params['shipping-address'])
-          autoship.bill_address.attributes = generate_address_attributes(params['billing-address'])
+          autoship.ship_address.attributes = Address.generate_attributes_by_decorated_attributes(params['shipping-address'])
+          autoship.bill_address.attributes = Address.generate_attributes_by_decorated_attributes(params['billing-address'])
 
           validate_address_types = []
           validate_address_types << 'billing' if autoship.bill_address.changed?
@@ -191,16 +186,16 @@ module V1
           validate_address_types.each do |type|
             validate_response = API::Address.validate(type, params["#{type}-address"])
             if !validate_response.success?
-              generate_error_response(InvalidAddressError.new(validate_response.error_message), 400) and return
+              generate_error_response(Errors::InvalidAddress.new(validate_response.error_message)) and return
             elsif validate_response.body['failures'].present?
-              generate_error_response(InvalidAddressError.new(validate_response.body['failures'].to_json), 400) and return
+              generate_error_response(Errors::InvalidAddress.new(validate_response.body['failures'].to_json)) and return
             end
           end
 
           autoship_items_attributes = JSON.load(params['autoship-items']).map { |h| { variant_id: h['variant-id'], quantity: h['quantity'] } }
           autoship_items_attributes.select! { |item| item[:quantity].to_i > 0 }
           if autoship_items_attributes.blank?
-            generate_error_response(NoProductError.new(I18n.t("please_at_least_select_one_product")), 400) and return
+            generate_error_response(Errors::InvalidAutoshipItem.new(I18n.t("please_at_least_select_one_product"))) and return
           end
 
           autoship_items  = autoship.autoship_items
@@ -219,6 +214,9 @@ module V1
             autoship_items_attributes << new_items_hash[variant_id].merge(id: old_items_hash[variant_id].id)
           end
           autoship.attributes = { autoship_items_attributes: autoship_items_attributes }
+          if (not_allowed_variant_ids = autoship.not_allowed_variant_ids).present?
+            generate_error_response(Errors::InvalidAutoshipItem.new("not allowed variant ids is #{not_allowed_variant_ids.join(', ')}")) and return
+          end
 
           active_payment = autoship.autoship_payments.active_payment
           creditcard     = active_payment.creditcard
@@ -238,7 +236,7 @@ module V1
             token_params['billing-address']['country-iso'] = country.iso
             token_response = API::Payment.create_token(token_params)
             unless token_response.success?
-              generate_error_response(TokenFailedError.new(token_response.message), 400) and return
+              generate_error_response(Errors::TokenFailed.new(token_response.message)) and return
             end
 
             autoship.autoship_payments.build({
@@ -256,7 +254,7 @@ module V1
           if autoship.save
             generate_success_response('autoship-id' => autoship.id, 'state' => autoship.state)
           else
-            generate_error_response(InvalidAutoshipError.new(autoship.errors.full_messages.join('; ')), 400)
+            generate_error_response(Errors::InvalidAutoship.new(autoship.errors.full_messages.join('; ')))
           end
         end
 
@@ -273,7 +271,7 @@ module V1
           if autoship.save
             generate_success_response('autoship-id' => autoship.id, 'state' => autoship.state)
           else
-            generate_error_response(InvalidAutoshipError.new(autoship.errors.full_messages.join('; ')), 400)
+            generate_error_response(Errors::InvalidAutoship.new(autoship.errors.full_messages.join('; ')))
           end
         end
       end

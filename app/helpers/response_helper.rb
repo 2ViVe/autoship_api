@@ -15,7 +15,7 @@ module ResponseHelper
     {
       meta: { code: code },
       request: request_info,
-      response: deep_dasherize_hash(response_body)
+      response: response_body
     }
   end
 
