@@ -5,6 +5,8 @@ ActiveRecord::Base.logger = begin
   Dir.mkdir("#{Goliath.root}/log") unless Dir.exists?("#{Goliath.root}/log")
   logger = ActiveSupport::Logger.new("#{Goliath.root}/log/activerecord.log")
   logger.level = Logger::DEBUG
+  logger.formatter = proc { |severity, datetime, progname, msg|
+    "#{severity} [#{datetime}] #{msg}\n"
+  }
   logger
 end
-
